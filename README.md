@@ -13,8 +13,7 @@ Upstream-App: https://github.com/pinn-shost/pinn · Design-Spec: `docs/superpowe
 bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/FamilyPlanner-PINN-Proxmox/main/install/pinn.sh)"
 ```
 
-> Stand: `install/pinn.sh` und `install/pinn-install.sh` sind in Arbeit (Plan-Phase).
-> Der Einzeiler funktioniert erst, sobald diese Dateien hier auf `main` liegen.
+> Stand: Installer vollständig auf `main` (`install/pinn.sh`, `install/pinn-install.sh`, `install/pinn.service`).
 
 ## Was das Script tut
 
@@ -109,16 +108,42 @@ Erwartet: `active`, HTTP-Antwort vom Health-Endpoint, `onboot OK`.
 pct enter <CTID>
 journalctl -u pinn -n 100 --no-pager
 docker logs pocketbase --tail 80
-docker compose -C /opt/pinn ps
+cd /opt/pinn && docker compose ps
 ```
 
 ## Dateien in diesem Repo
 
-- `install/pinn.sh` – Host-Script (CT-Lifecycle, IP-Poll, Verifikation) *(in Arbeit)*
-- `install/pinn-install.sh` – Container-Setup (Docker, Clone, Setup, systemd-Unit) *(in Arbeit)*
-- `install/pinn.service` – systemd-Unit-Vorlage *(in Arbeit)*
+- `install/pinn.sh` – Host-Script (CT-Lifecycle, IP-Poll, Verifikation)
+- `install/pinn-install.sh` – Container-Setup (Docker, Clone, Setup, systemd-Unit)
+- `install/pinn.service` – systemd-Unit-Vorlage
 - `docs/superpowers/specs/2026-10-11-pinn-proxmox-design.md` – freigegebene Design-Spec
 
 ## Lizenz
 
 Installer-Scripts: MIT (wie Upstream pinn., https://github.com/pinn-shost/pinn/blob/main/LICENSE).
+
+## Erwartete Ausgabe (Erfolg)
+
+```
+==> [1/7] Ziel-CT bestimmen
+Neue CT-ID: 100
+==> [2/7] Storage + Template
+Storage: local-lvm
+==> [3/7] CT erstellen + starten
+==> [4/7] Auf Container-IP warten (max. 5 Min)
+Container-IP: 192.168.178.50
+==> [5/7] Setup-Script in den CT legen
+per pct push uebertragen
+==> [6/7] Setup im CT ausfuehren
+OK: pinn. laeuft — http://192.168.178.50:8090 (Ersteinrichtung: als Hauptadmin anmelden, Passwort: Admin)
+==> [7/7] Verifikation (onboot + Service + HTTP)
+================================================================
+  pinn. laeuft:  http://192.168.178.50:8090
+  CTID 100 (pinn), 2 vCPU / 2048 MB / 8 GB, onboot: 1
+  Ersteinrichtung: als Hauptadmin anmelden (Passwort: Admin)
+  Update: Einzeiler erneut laufen lassen | Deinstall: pct stop 100 && pct destroy 100
+  Log: /tmp/pinn-install-host-2026-10-11_120000.log
+================================================================
+```
+
+(IPs/IDs sind Beispiele, echte Werte kommen vom eigenen Host.)
