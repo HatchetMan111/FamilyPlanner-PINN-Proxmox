@@ -1,0 +1,17 @@
+[Unit]
+Description=pinn. family organizer (Docker Compose)
+Documentation=https://github.com/pinn-shost/pinn
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pinn
+ExecStart=/usr/bin/docker compose up
+ExecStop=/usr/bin/docker compose down -t 30
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
