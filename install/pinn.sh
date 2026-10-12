@@ -53,6 +53,9 @@ if [ -n "${CTID:-}" ]; then
       echo "FEHLER: CTID ${CTID} ist belegt (anderer Container). Freie ID: $(pvesh get /cluster/nextid). Abbruch." >&2
       exit 1
     fi
+  elif [ -n "${existing}" ]; then
+    echo "FEHLER: CTID ${CTID} ist frei, aber '${APP}' existiert bereits als CT ${existing}. Nutze CTID=${existing} oder loesche den alten CT. Abbruch." >&2
+    exit 1
   fi
 elif [ -n "${existing}" ]; then
   CTID="${existing}"
@@ -64,7 +67,11 @@ fi
 
 if [ -z "${existing}" ]; then
   echo "==> [2/7] Storage + Template"
-  if pvesm status | grep -q '^local-lvm'; then STORAGE="local-lvm"; else STORAGE="local"; fi
+  if [ -z "${STORAGE:-}" ]; then
+    if pvesm status | awk 'NR>1 && $1=="local-lvm" {found=1} END{exit !found}'; then STORAGE="local-lvm"; else STORAGE="local"; fi
+  fi
+  pvesm status | awk -v s="${STORAGE}" 'NR>1 && $1==s {found=1} END{exit !found}' \
+    || { echo "FEHLER: Storage '${STORAGE}' nicht vorhanden (pvesm status pruefen)" >&2; exit 1; }
   echo "Storage: ${STORAGE}"
   TPL="$(pveam available --section system 2>/dev/null | grep -o 'debian-12-standard_[^ ]*amd64[^ ]*' | sort -V | tail -1 || true)"
   if [ -z "${TPL}" ]; then echo "FEHLER: kein debian-12-Template in 'pveam available' (Netz/Update pruefen)" >&2; exit 1; fi
@@ -109,9 +116,10 @@ else
   pct exec "${CTID}" -- bash -c "curl -fsSL '${GUEST_SCRIPT_URL}' -o /tmp/pinn-install.sh" \
     || { echo "FEHLER: auch curl-Fallback schlug fehl: ${GUEST_SCRIPT_URL}" >&2; exit 1; }
 fi
+[ -s /tmp/pinn-install.sh ] || { echo "FEHLER: Fallback-Download ist leer: ${GUEST_SCRIPT_URL}" >&2; exit 1; }
 
 echo "==> [6/7] Setup im CT ausfuehren"
-pct exec "${CTID}" -- bash /tmp/pinn-install.sh
+pct exec "${CTID}" -- env DEBUG="${DEBUG:-0}" bash /tmp/pinn-install.sh
 
 echo "==> [7/7] Verifikation (onboot + Service + HTTP)"
 pct config "${CTID}" | grep -q '^onboot: 1' || { echo "FEHLER: onboot nicht gesetzt (pct config ${CTID})" >&2; exit 1; }

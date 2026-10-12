@@ -52,10 +52,13 @@ else
 fi
 
 echo "==> [4/7] systemd-Unit"
-if ! curl -fsSL "${UNIT_URL}" -o "${UNIT_DST}"; then
+if ! curl -fsSL "${UNIT_URL}" -o "${UNIT_DST}.tmp"; then
   echo "FEHLER: Unit konnte nicht geladen werden: ${UNIT_URL} (HTTP-Fehler, pruefe Branch/Dateipfad)" >&2
+  rm -f "${UNIT_DST}.tmp"
   exit 1
 fi
+[ -s "${UNIT_DST}.tmp" ] || { echo "FEHLER: Unit-Download ist leer: ${UNIT_URL}" >&2; rm -f "${UNIT_DST}.tmp"; exit 1; }
+mv "${UNIT_DST}.tmp" "${UNIT_DST}"
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
 
@@ -81,6 +84,6 @@ if [ "${ok}" != "1" ]; then
   exit 1
 fi
 
-ip="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1)"
-[ -z "${ip}" ] && ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+ip="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1 || true)"
+[ -z "${ip}" ] && ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
 echo "OK: pinn. laeuft — http://${ip:-<LXC-IP>}:${APP_PORT} (Ersteinrichtung: als Hauptadmin anmelden, Passwort: Admin)"
